@@ -1,0 +1,25 @@
+idea:
+  title: Where is rhyming?
+  domain: nlp
+  hypothesis: 'The ability of language models to recognize rhyming is not solely encoded
+    in word embeddings, as context-specific pronunciation plays a role. This research
+    investigates where rhyming knowledge is represented within models and whether
+    there exists a subspace for each IPA sound.
+
+    '
+  background:
+    description: 'Models know when words rhyme. Is that all in the embeddings? It
+      seems like it can''t be, because there is some level of context-specific pronounciation.
+      So where is rhyming? And how is it structured? Is there a subspace for every
+      IPA sound?
+
+      '
+  metadata:
+    author: Ari Holtzman
+    source: IdeaHub
+    source_url: https://hypogenic.ai/ideahub/idea/2jp9uTGQmqhaV22saFW5
+    idea_id: where_is_rhyming__20260320_180517_ed0ce602
+    created_at: '2026-03-20T18:05:17.497196'
+    status: submitted
+    github_repo_name: where-is-rhyming-claude
+    github_repo_url: https://github.com/Hypogenic-AI/where-is-rhyming-claude
