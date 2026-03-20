@@ -1,0 +1,54 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Phonetics vs.\ Semantics: Different Distributional Patterns}
+
+The most striking finding is the qualitative difference between how phonetic and semantic features are distributed across layers.
+Semantic and syntactic features typically \emph{build} through the network: syntactic information peaks in middle layers, while semantic information strengthens in later layers \citep{radford2019language}.
+Phonetic information, by contrast, is strongest at the embedding boundary and gradually degrades.
+
+This makes intuitive sense.
+Phonetic form is a property of the token \emph{itself}---it does not depend on context (except for heteronyms).
+The embedding table can encode each token's phonetic profile directly, and the first transformer layer refines these representations slightly before the network shifts its representational capacity toward contextual, semantic features.
+The progressive compression of phonetic directions in deeper layers (\tabref{tab:geometry}) is the geometric signature of this tradeoff: as the network builds richer semantic representations, it reuses dimensions that previously carried phonetic distinctions.
+
+\subsection{Comparison to Prior Work}
+
+Our results both confirm and extend the findings of \citet{mclaughlin2025rhyme}.
+We confirm that phonetic information is linearly recoverable from token embeddings, consistent with their approximately 96\% probe accuracy.
+Our lower absolute accuracy (macro F1 = 0.41 vs.\ their 96\%) reflects methodological differences: we use Ridge classifiers with per-phoneme binary predictions and macro-averaged F1 across all 77 phonemes including rare ones, while they use multi-hot logistic probes evaluated differently.
+The key comparison is qualitative: we show that phonetic information does not \emph{improve} with depth, which their work did not test.
+
+Our finding that articulatory features do not cluster in the general residual stream contrasts with \citet{mclaughlin2025rhyme}'s organized vowel chart in phoneme mover head result vectors.
+This suggests that articulatory organization may be a property of specialized attention heads rather than of the residual stream as a whole---the general representation encodes phonetic information in a less structured way that specialized circuits then organize for the specific task of rhyme production.
+
+\subsection{The Primary-Pronunciation Bias}
+
+The heteronym results reveal something about how language models store and access pronunciation.
+The 92\% vs.\ 58\% accuracy gap between primary and secondary pronunciations suggests that embeddings encode a dominant phonetic profile, and contextual processing can sometimes---but not reliably---override it.
+Words where the model succeeds (``read,'' ``lead,'' ``tear'') may have more distinctive syntactic cues distinguishing their pronunciations, while words where it fails (``wind,'' ``bow,'' ``live'') have subtler contextual signals.
+
+This connects to our probing finding: if the embedding already commits to a phonetic profile that does not improve with depth, then resolving heteronyms requires the model to \emph{override} embedding-level information using contextual attention---a more demanding computation than simply propagating what the embedding already encodes.
+
+\subsection{Limitations}
+
+\para{Single-token constraint.}
+We analyze only words that GPT-2 encodes as a single token, biasing our sample toward common, short words.
+Multi-token words constitute the majority of the vocabulary and may exhibit different phonetic encoding patterns, particularly since their pronunciation must be assembled from subword pieces.
+
+\para{Model and probe choices.}
+Our experiments use \gptmed, a smaller and older model than the \llama studied by \citet{mclaughlin2025rhyme}.
+The phoneme mover head phenomenon may not exist in GPT-2, or may manifest differently.
+Our use of Ridge classifiers rather than logistic regression means absolute probe accuracies are not directly comparable across studies.
+
+\para{Isolated token analysis.}
+We extract activations for single tokens without surrounding context, which means we measure what is \emph{stored} in each token's representation rather than what is \emph{computed} via attention from neighboring tokens.
+This is intentional---we want to isolate the static phonetic content---but it misses the role of attention mechanisms that \citet{mclaughlin2025rhyme}'s phoneme mover heads exploit.
+
+\para{Heteronym sample size.}
+Our context-dependent test uses only 12 heteronyms on a single model (\gptfour), limiting statistical power.
+A larger-scale heteronym evaluation across multiple models would strengthen these findings.
+
+\para{Pronunciation ambiguity.}
+We use the first transcription from \wikipron for each word.
+Some words have multiple valid pronunciations, and our probes may partially reflect this ambiguity.

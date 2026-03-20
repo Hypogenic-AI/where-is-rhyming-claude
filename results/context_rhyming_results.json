@@ -1,0 +1,381 @@
+{
+  "summary": {
+    "model": "gpt-4.1",
+    "heteronym_accuracy": 0.75,
+    "heteronym_correct": 18,
+    "heteronym_total": 24,
+    "standard_accuracy": 1.0,
+    "standard_correct": 20,
+    "standard_total": 20,
+    "easy_rhyme_accuracy": 1.0,
+    "tricky_rhyme_accuracy": 1.0
+  },
+  "heteronym_results": [
+    {
+      "word": "read",
+      "pron1_context": "I will read the book.",
+      "pron1_expected": "seed",
+      "pron1_answer": "seed",
+      "pron1_correct": true,
+      "pron2_context": "I have read the book.",
+      "pron2_expected": "said",
+      "pron2_answer": "said",
+      "pron2_correct": true,
+      "no_context_answer": "seed"
+    },
+    {
+      "word": "lead",
+      "pron1_context": "She will lead the team.",
+      "pron1_expected": "need",
+      "pron1_answer": "need",
+      "pron1_correct": true,
+      "pron2_context": "The pipe is made of lead.",
+      "pron2_expected": "bed",
+      "pron2_answer": "bed",
+      "pron2_correct": true,
+      "no_context_answer": "need"
+    },
+    {
+      "word": "wind",
+      "pron1_context": "The wind is blowing hard.",
+      "pron1_expected": "pinned",
+      "pron1_answer": "pinned",
+      "pron1_correct": true,
+      "pron2_context": "Wind the clock before bed.",
+      "pron2_expected": "find",
+      "pron2_answer": "pinned",
+      "pron2_correct": false,
+      "no_context_answer": "pinned"
+    },
+    {
+      "word": "tear",
+      "pron1_context": "A tear fell from her eye.",
+      "pron1_expected": "here",
+      "pron1_answer": "here",
+      "pron1_correct": true,
+      "pron2_context": "Don't tear the paper.",
+      "pron2_expected": "bear",
+      "pron2_answer": "bear",
+      "pron2_correct": true,
+      "no_context_answer": "bear"
+    },
+    {
+      "word": "bow",
+      "pron1_context": "The actor took a bow.",
+      "pron1_expected": "cow",
+      "pron1_answer": "cow",
+      "pron1_correct": true,
+      "pron2_context": "She tied a bow on the gift.",
+      "pron2_expected": "show",
+      "pron2_answer": "cow",
+      "pron2_correct": false,
+      "no_context_answer": "show"
+    },
+    {
+      "word": "bass",
+      "pron1_context": "He caught a large bass in the lake.",
+      "pron1_expected": "class",
+      "pron1_answer": "class",
+      "pron1_correct": true,
+      "pron2_context": "The bass guitar sounds deep.",
+      "pron2_expected": "face",
+      "pron2_answer": "class",
+      "pron2_correct": false,
+      "no_context_answer": "class"
+    },
+    {
+      "word": "dove",
+      "pron1_context": "A white dove flew overhead.",
+      "pron1_expected": "love",
+      "pron1_answer": "love",
+      "pron1_correct": true,
+      "pron2_context": "She dove into the pool.",
+      "pron2_expected": "stove",
+      "pron2_answer": "stove",
+      "pron2_correct": true,
+      "no_context_answer": "love"
+    },
+    {
+      "word": "minute",
+      "pron1_context": "Wait a minute please.",
+      "pron1_expected": "in it",
+      "pron1_answer": "in it",
+      "pron1_correct": true,
+      "pron2_context": "The difference is minute.",
+      "pron2_expected": "cute",
+      "pron2_answer": "in it",
+      "pron2_correct": false,
+      "no_context_answer": "in it"
+    },
+    {
+      "word": "close",
+      "pron1_context": "Please close the door.",
+      "pron1_expected": "goes",
+      "pron1_answer": "goes",
+      "pron1_correct": true,
+      "pron2_context": "Stay close to me.",
+      "pron2_expected": "dose",
+      "pron2_answer": "dose",
+      "pron2_correct": true,
+      "no_context_answer": "goes"
+    },
+    {
+      "word": "live",
+      "pron1_context": "I live in New York.",
+      "pron1_expected": "give",
+      "pron1_answer": "give",
+      "pron1_correct": true,
+      "pron2_context": "The concert is live tonight.",
+      "pron2_expected": "five",
+      "pron2_answer": "give",
+      "pron2_correct": false,
+      "no_context_answer": "give"
+    },
+    {
+      "word": "refuse",
+      "pron1_context": "I refuse to accept.",
+      "pron1_expected": "news",
+      "pron1_answer": "news",
+      "pron1_correct": true,
+      "pron2_context": "Take out the refuse.",
+      "pron2_expected": "goose",
+      "pron2_answer": "goose",
+      "pron2_correct": true,
+      "no_context_answer": "news"
+    },
+    {
+      "word": "desert",
+      "pron1_context": "The Sahara is a vast desert.",
+      "pron1_expected": "dessert",
+      "pron1_answer": "alert",
+      "pron1_correct": false,
+      "pron2_context": "Don't desert your friends.",
+      "pron2_expected": "alert",
+      "pron2_answer": "alert",
+      "pron2_correct": true,
+      "no_context_answer": "alert"
+    }
+  ],
+  "standard_results": [
+    {
+      "word": "cat",
+      "options": [
+        "hat",
+        "dog",
+        "run"
+      ],
+      "expected": "hat",
+      "answer": "hat",
+      "correct": true
+    },
+    {
+      "word": "moon",
+      "options": [
+        "spoon",
+        "sun",
+        "tree"
+      ],
+      "expected": "spoon",
+      "answer": "spoon",
+      "correct": true
+    },
+    {
+      "word": "bright",
+      "options": [
+        "night",
+        "day",
+        "cloud"
+      ],
+      "expected": "night",
+      "answer": "night",
+      "correct": true
+    },
+    {
+      "word": "ocean",
+      "options": [
+        "motion",
+        "river",
+        "wave"
+      ],
+      "expected": "motion",
+      "answer": "motion",
+      "correct": true
+    },
+    {
+      "word": "power",
+      "options": [
+        "flower",
+        "energy",
+        "force"
+      ],
+      "expected": "flower",
+      "answer": "flower",
+      "correct": true
+    },
+    {
+      "word": "dream",
+      "options": [
+        "stream",
+        "sleep",
+        "night"
+      ],
+      "expected": "stream",
+      "answer": "stream",
+      "correct": true
+    },
+    {
+      "word": "stone",
+      "options": [
+        "bone",
+        "rock",
+        "hard"
+      ],
+      "expected": "bone",
+      "answer": "bone",
+      "correct": true
+    },
+    {
+      "word": "rain",
+      "options": [
+        "train",
+        "water",
+        "cloud"
+      ],
+      "expected": "train",
+      "answer": "train",
+      "correct": true
+    },
+    {
+      "word": "light",
+      "options": [
+        "fight",
+        "dark",
+        "lamp"
+      ],
+      "expected": "fight",
+      "answer": "fight",
+      "correct": true
+    },
+    {
+      "word": "house",
+      "options": [
+        "mouse",
+        "home",
+        "door"
+      ],
+      "expected": "mouse",
+      "answer": "mouse",
+      "correct": true
+    },
+    {
+      "word": "blue",
+      "options": [
+        "true",
+        "color",
+        "sky"
+      ],
+      "expected": "true",
+      "answer": "true",
+      "correct": true
+    },
+    {
+      "word": "gold",
+      "options": [
+        "cold",
+        "metal",
+        "yellow"
+      ],
+      "expected": "cold",
+      "answer": "cold",
+      "correct": true
+    },
+    {
+      "word": "night",
+      "options": [
+        "sight",
+        "dark",
+        "moon"
+      ],
+      "expected": "sight",
+      "answer": "sight",
+      "correct": true
+    },
+    {
+      "word": "spring",
+      "options": [
+        "ring",
+        "season",
+        "water"
+      ],
+      "expected": "ring",
+      "answer": "ring",
+      "correct": true
+    },
+    {
+      "word": "heart",
+      "options": [
+        "start",
+        "love",
+        "blood"
+      ],
+      "expected": "start",
+      "answer": "start",
+      "correct": true
+    },
+    {
+      "word": "tough",
+      "options": [
+        "stuff",
+        "dough",
+        "cough"
+      ],
+      "expected": "stuff",
+      "answer": "stuff",
+      "correct": true
+    },
+    {
+      "word": "weight",
+      "options": [
+        "late",
+        "height",
+        "freight"
+      ],
+      "expected": "late",
+      "answer": "late",
+      "correct": true
+    },
+    {
+      "word": "through",
+      "options": [
+        "blue",
+        "rough",
+        "cough"
+      ],
+      "expected": "blue",
+      "answer": "blue",
+      "correct": true
+    },
+    {
+      "word": "said",
+      "options": [
+        "bed",
+        "paid",
+        "maid"
+      ],
+      "expected": "bed",
+      "answer": "bed",
+      "correct": true
+    },
+    {
+      "word": "blood",
+      "options": [
+        "mud",
+        "good",
+        "food"
+      ],
+      "expected": "mud",
+      "answer": "mud",
+      "correct": true
+    }
+  ]
+}

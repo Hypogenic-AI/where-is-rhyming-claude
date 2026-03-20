@@ -1,0 +1,788 @@
+You are an academic paper writer. Generate a complete NEURIPS style paper
+based on the experiment results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .claude/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW EXAMPLES: Browse paper_examples/ for formatting and language patterns:
+   - Look at sections/1.introduction.tex for language style
+   - Look at tables/*.tex for table formatting
+   - Look at commands/*.tex for macro usage
+4. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex) are pre-copied to paper_draft/commands/
+
+CRITICAL: Reference example papers for FORMATTING and LANGUAGE STYLE only.
+Do NOT copy content, phrasing, or narrative structure from the example papers.
+The examples are in a different research domain - focus only on presentation style.
+
+════════════════════════════════════════════════════════════════════════════════
+                            EXPERIMENT REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# Where is Rhyming? — Research Report
+
+## 1. Executive Summary
+
+Language models know when words rhyme despite never hearing speech. We investigated **where** rhyming knowledge is encoded in transformer language models and **how** it is structured, asking whether each IPA phoneme has its own subspace. Our experiments on GPT-2 Medium (24 layers, 1024 dims) using 13,105 single-token English words with IPA transcriptions reveal three key findings:
+
+1. **Phonetic information is primarily in the embeddings.** Linear probes achieve their peak phoneme prediction accuracy at the embedding/layer-0 boundary (macro F1 = 0.41), with no meaningful improvement in deeper layers. This confirms that phonetic knowledge is established very early and simply maintained (or slightly degraded) through the network.
+
+2. **Phoneme directions exist but are not orthogonal subspaces.** Each phoneme has a distinct direction in embedding space (mean pairwise |cosine similarity| = 0.13, vs 0.025 expected for random). However, these directions become *more* aligned in deeper layers (0.30 at the final layer), suggesting phonetic structure gets compressed as semantic representations develop.
+
+3. **Context-dependent rhyming requires more than embeddings.** GPT-4.1 achieves 100% on standard rhyming and 75% on heteronym rhyming (context-dependent pronunciation), with a striking asymmetry: 92% accuracy on primary pronunciations vs 58% on secondary pronunciations. This shows that while embeddings encode the dominant pronunciation, resolving ambiguous pronunciation requires contextual processing.
+
+## 2. Goal
+
+**Research question:** Where is rhyming knowledge encoded in language models — is it all in the embeddings, or does it require deeper processing? Is there a distinct subspace for each IPA sound?
+
+**Why this matters:** Understanding how models represent phonetic information without any auditory input illuminates emergent linguistic representations in neural networks. This has implications for mechanistic interpretability, multilingual transfer, and the design of phonetically-aware NLP systems.
+
+**Primary prior work:** McLaughlin, Khurana &amp; Merullo (2025) &#34;I Have No Mouth, and I Must Rhyme&#34; found a &#34;phoneme mover head&#34; (H13L12) in Llama-3.2-1B that organizes rhyming behavior, with ~96% linear probe accuracy on embeddings. Our work extends this by (a) systematically probing all layers, (b) analyzing phoneme subspace geometry, and (c) testing context-dependent pronunciation.
+
+## 3. Data Construction
+
+### Dataset Description
+- **Source:** WikiPron (US English broad transcriptions) + Oxford 5000 word list
+- **Size:** 13,105 words with IPA transcriptions, 77 unique IPA phonemes
+- **Selection:** Words that encode as a single GPT-2 token (no BPE splitting)
+- **Split:** 80/20 train/test (10,484 / 2,621), stratified by random seed 42
+
+### Example Samples
+
+| Word | Token ID | IPA | Phonemes |
+|------|----------|-----|----------|
+| water | 7050 | w ɑ t ɝ | [w, ɑ, t, ɝ] |
+| chalk | 31990 | t͡ʃ ɑ k | [t͡ʃ, ɑ, k] |
+| thread | 16663 | θ ɹ ɛ d | [θ, ɹ, ɛ, d] |
+
+### Data Quality
+- 4,607 of the 13,105 words (35%) are in the Oxford 5000 common word list
+- 49 of 77 phonemes have ≥30 occurrences (sufficient for direction analysis)
+- 30 phonemes have F1 &gt; 0.1 in probing (reliably detectable)
+
+### Preprocessing
+1. WikiPron TSV parsed: `word → [space-separated IPA phonemes]`
+2. GPT-2 tokenizer used to identify single-token words
+3. Multi-hot encoding: each word labeled with all its constituent phonemes
+4. Intersected with WikiPron pronunciations (first transcription used)
+
+## 4. Experiment Description
+
+### Methodology
+
+#### Experiment 1: Layer-Wise Phoneme Probing
+**Goal:** Map where phonetic information lives across the model&#39;s layers.
+
+**Method:** For each of the 25 layers (embedding + 24 transformer layers), we extracted the residual stream activation for each word&#39;s token, then trained per-phoneme Ridge classifiers (one per IPA phoneme, 77 total) to predict phoneme presence from the activation vector. We used StandardScaler normalization and α=1.0 regularization.
+
+**Why Ridge:** LogisticRegression was prohibitively slow (~10 min/layer); Ridge provides comparable quality with ~11s/layer, enabling full 25-layer sweep.
+
+#### Experiment 2: Phoneme Subspace Geometry
+**Goal:** Test whether each IPA sound has a distinct direction/subspace in representation space.
+
+**Method:** Computed &#34;phoneme direction vectors&#34; as the difference between mean activations of words containing vs. not containing each phoneme: `d_p = mean(x | p ∈ word) - mean(x | p ∉ word)`. Analyzed these directions via:
+- Pairwise cosine similarity matrix
+- Hierarchical clustering (Ward&#39;s method)
+- PCA visualization (all phonemes, vowels-only, consonants-only)
+- Silhouette scores for vowel/consonant and manner-of-articulation groupings
+- Orthogonality comparison across layers
+
+**Why direction vectors instead of probe weights:** Ridge regression weights were degenerate (all nearly collinear), an artifact of L2 regularization. Mean-difference directions directly measure how phonemes are encoded.
+
+#### Experiment 3: Context-Dependent Rhyming (API)
+**Goal:** Test whether rhyming requires contextual processing beyond embeddings.
+
+**Method:** Queried GPT-4.1 API with:
+- 12 heteronyms (words with context-dependent pronunciation: read, lead, wind, tear, bow, bass, dove, minute, close, live, refuse, desert)
+- Each tested in two contexts with forced-choice rhyming
+- 20 standard rhyming pairs (15 easy + 5 orthographically tricky)
+- Temperature=0 for reproducibility
+
+### Tools and Libraries
+
+| Library | Version | Purpose |
+|---------|---------|---------|
+| transformer-lens | 2.16.1 | Activation extraction, model hooks |
+| transformers | 5.3.0 | Tokenizer |
+| torch | 2.10.0 | GPU acceleration |
+| scikit-learn | latest | Ridge classifiers, PCA, metrics |
+| openai | 2.29.0 | GPT-4.1 API calls |
+| matplotlib/seaborn | latest | Visualization |
+
+### Hyperparameters
+
+| Parameter | Value | Method |
+|-----------|-------|--------|
+| Ridge α | 1.0 | Default |
+| Train/test split | 80/20 | Random, seed=42 |
+| Min phoneme count | 30 | For direction analysis |
+| Batch size | 256 | GPU memory |
+| API temperature | 0 | Deterministic |
+
+### Hardware
+- **GPU:** NVIDIA RTX A6000 (49 GB VRAM) × 4 (used 1)
+- **Model:** GPT-2 Medium (355M parameters)
+- **Execution time:** ~5 min (activation extraction) + ~5 min (probing) + ~2 min (API calls)
+
+## 5. Raw Results
+
+### Experiment 1: Layer-Wise Probing
+
+| Layer | Macro F1 | Micro F1 | Exact Match |
+|-------|----------|----------|-------------|
+| Embedding | 0.3947 | 0.5169 | 0.008 |
+| **Layer 0** | **0.4125** | **0.5117** | **0.007** |
+| Layer 1 | 0.3850 | 0.5242 | 0.009 |
+| Layer 5 | 0.3748 | 0.5212 | 0.009 |
+| Layer 11 | 0.3756 | 0.5219 | 0.009 |
+| Layer 17 | 0.3758 | 0.5222 | 0.009 |
+| Layer 23 | 0.3665 | 0.5188 | 0.010 |
+
+**Key pattern:** Accuracy peaks at layer 0 (macro F1 = 0.413), then plateaus from layers 2-22 (~0.375), with a slight decline in the final layer (0.367).
+
+**Top phonemes by F1:** ŋ (0.80), ɪ (0.70), ə (0.69), z (0.67), n (0.60), t (0.60), k (0.60)
+
+### Experiment 2: Subspace Geometry
+
+| Layer | Mean |Cos Sim| | Expected Random | Silhouette (V/C) | Silhouette (Manner) |
+|-------|----------------|-----------------|-------------------|---------------------|
+| Embedding | 0.133 | 0.025 | -0.032 | -0.102 |
+| Layer 0 | 0.175 | 0.025 | -0.030 | -0.096 |
+| Layer 11 | 0.270 | 0.025 | -0.037 | -0.131 |
+| Layer 23 | 0.304 | 0.025 | -0.039 | -0.160 |
+
+**PCA explained variance (embedding):** PC1=13.1%, PC2=8.7%, PC3=8.4%, PC4=7.0%, PC5=6.2%
+
+### Experiment 3: Context-Dependent Rhyming
+
+| Test | Accuracy |
+|------|----------|
+| Standard rhyming (easy) | 15/15 (100%) |
+| Standard rhyming (tricky) | 5/5 (100%) |
+| Heteronym - primary pronunciation | 11/12 (92%) |
+| Heteronym - secondary pronunciation | 7/12 (58%) |
+| **Overall heteronym** | **18/24 (75%)** |
+
+**Failure pattern:** GPT-4.1 defaults to the primary pronunciation for wind (→pinned not find), bow (→cow not show), bass (→class not face), minute (→in it not cute), live (→give not five). It succeeds on read, lead, tear, dove, close, refuse.
+
+## 5. Result Analysis
+
+### Key Findings
+
+**Finding 1: Phonetic information is front-loaded in the network.**
+The probing accuracy peaks at layer 0 (first attention + MLP) and does not improve in deeper layers. This contrasts with semantic information, which typically builds through the network. Phonetic features are largely &#34;read off&#34; from the embedding table and its immediate processing.
+
+**Finding 2: Phoneme directions are structured but not orthogonal subspaces.**
+The mean pairwise |cosine similarity| of phoneme directions (0.133 at embedding) is 5.3× higher than expected for random directions (0.025). This means phonemes share significant representational structure — they don&#39;t each have an independent subspace. Rather, they occupy overlapping directions in a lower-dimensional phonetic manifold.
+
+**Finding 3: Phonetic structure degrades in deeper layers.**
+Phoneme directions become *more* aligned (less orthogonal) in deeper layers: 0.133 → 0.175 → 0.270 → 0.304. The network progressively compresses phonetic variation as it builds semantic representations. Silhouette scores worsen correspondingly.
+
+**Finding 4: Articulatory features are not cleanly clustered in GPT-2.**
+Negative silhouette scores for vowel/consonant (-0.03) and manner-of-articulation (-0.10) indicate that phonetic directions in GPT-2 do NOT organize by traditional articulatory categories. This differs from Merullo et al.&#39;s finding of organized structure in the phoneme mover head of Llama-3.2, suggesting the structure may be model-specific or emerge only in specialized attention heads rather than in the general residual stream.
+
+**Finding 5: Context-dependent rhyming reveals a &#34;primary pronunciation bias.&#34;**
+GPT-4.1 identifies rhymes perfectly for standard words but shows a systematic bias toward primary pronunciations when handling heteronyms. It succeeds 92% on primary but only 58% on secondary pronunciations. This proves that rhyming knowledge IS partially context-dependent and cannot be fully resolved from static embeddings alone — but current models are imperfect at it.
+
+### Comparison to Prior Work
+
+Our findings both confirm and extend Merullo et al. (2025):
+- **Confirmed:** Phonetic information is linearly recoverable from embeddings
+- **Extended:** This information does NOT improve with depth — it&#39;s front-loaded
+- **Divergent:** We don&#39;t find clean articulatory clustering in the general residual stream. Merullo et al. found it specifically in the *result vectors of phoneme mover heads*, which are specialized components. The general representation is messier.
+- **New:** Context-dependent rhyming (heteronyms) reveals limitations of embedding-only phonetic knowledge
+
+### Surprises and Insights
+
+1. **The flatness of the layer-probing curve is striking.** Unlike most linguistic features (syntax, semantics) which build through layers, phonetic information is essentially constant. This makes sense: phonetic form is a property of the token itself, not of its context.
+
+2. **The &#34;primary pronunciation bias&#34;** in GPT-4.1&#39;s heteronym handling suggests these models store a dominant pronunciation pathway and struggle to fully override it with context. Words like &#34;wind&#34; and &#34;live&#34; that have very common secondary meanings still default to the primary pronunciation for rhyming.
+
+3. **47 of 77 phonemes had F1=0** — these are rare phonemes (aspirated variants, syllabic consonants, diphthongs) with too few examples in our single-token word set. A character-level model would likely perform better on these.
+
+### Limitations
+
+1. **Single-token constraint:** We only analyzed words that GPT-2 encodes as a single token, biasing toward common short words. Multi-token words (which are the majority of the vocabulary) are excluded.
+
+2. **GPT-2 Medium vs. Llama-3.2:** Our model is smaller and older than Merullo et al.&#39;s. The phoneme mover head phenomenon may not exist in GPT-2, or may manifest differently.
+
+3. **Ridge vs. LogisticRegression:** Ridge classifiers use a different decision boundary than logistic probes. Our F1 scores are not directly comparable to Merullo et al.&#39;s ~96% accuracy (which used multi-hot probes with different evaluation).
+
+4. **Isolated tokens:** Extracting single-token activations misses the role of attention from surrounding tokens, which is where phoneme mover heads operate. Our probing measures what&#39;s &#34;stored&#34; in each token, not what&#39;s &#34;computed&#34; in context.
+
+5. **WikiPron transcription choice:** We used the first transcription for each word; some words have multiple valid pronunciations.
+
+## 6. Conclusions
+
+### Summary
+
+Rhyming knowledge in language models is **primarily stored in the token embedding table** and is available from the very first layer. Each IPA phoneme has a distinct (but not orthogonal) direction in embedding space, with pairwise similarity 5× higher than random. These phonetic directions become increasingly compressed in deeper layers as semantic representations develop. Context-dependent pronunciation (heteronyms) poses a genuine challenge that requires processing beyond embeddings, with current models showing systematic bias toward primary pronunciations.
+
+### Implications
+
+- **For interpretability:** Phonetic features are one of the &#34;easiest&#34; to probe because they&#39;re front-loaded. This makes them good sanity checks for probing methodology, but researchers should not assume all linguistic features follow this pattern.
+- **For model design:** The &#34;primary pronunciation bias&#34; in heteronym handling suggests room for improvement in how models integrate context for phonetic disambiguation.
+- **For the research question:** The answer to &#34;where is rhyming?&#34; is: **mostly in the embedding table, refined by early layers, and largely preserved (but not enhanced) through the rest of the network.** Per-phoneme subspaces exist in a loose sense (distinct but overlapping directions), not in a strict sense (orthogonal subspaces).
+
+### Confidence in Findings
+
+- **High confidence:** Layer-wise probing pattern (flat after layer 0) — consistent across macro/micro F1, robust with 13K words
+- **High confidence:** Phoneme directions are non-random — 5× above random baseline
+- **Medium confidence:** Articulatory clustering absence — could be model-specific (GPT-2 vs Llama)
+- **Medium confidence:** Heteronym results — limited to 12 words, single model (GPT-4.1)
+
+## 7. Next Steps
+
+### Immediate Follow-ups
+1. **Replicate on Llama-3.2-1B** (requires access): Compare layer-wise probing and verify the phoneme mover head finding
+2. **Multi-token probing:** Extend analysis to multi-token words using contextual representations
+3. **Causal interventions:** Modify phoneme directions and observe changes in rhyming behavior
+
+### Alternative Approaches
+- **Logit lens:** Decode residual stream at each layer into vocabulary space and measure phonetic similarity of predicted tokens
+- **Activation patching:** Identify which attention heads contribute most to rhyming (replicating Merullo et al.&#39;s methodology on GPT-2)
+- **Nonlinear probes:** MLP probes to check for non-linearly encoded phonetic information
+
+### Open Questions
+1. Why does GPT-2 not show clean articulatory clustering while Llama-3.2 does? Is this a function of model size, training data, or architecture?
+2. Do phoneme mover heads exist in GPT-2, and if so, where?
+3. Can the &#34;primary pronunciation bias&#34; be mitigated by better prompting or fine-tuning?
+4. How do character-level vs subword models differ in phonetic representation geometry?
+
+## References
+
+1. McLaughlin, Khurana &amp; Merullo (2025). &#34;I Have No Mouth, and I Must Rhyme.&#34; ICML 2025 Workshop. arXiv:2508.02527
+2. Zouhar et al. (2023). &#34;PWESuite: Phonetic Word Embeddings and Tasks They Facilitate.&#34; LREC-COLING 2024. arXiv:2304.02541
+3. Bunzeck et al. (2024). &#34;Small Language Models Also Work With Small Vocabularies.&#34; BabyLM Challenge. arXiv:2410.01487
+4. WikiPron: Massively multilingual pronunciation mining. CUNY-CL/wikipron
+5. GPT-2 Medium: Radford et al. (2019). &#34;Language Models are Unsupervised Multitask Learners.&#34;
+
+## Appendix: File Structure
+
+```
+results/
+├── token_phoneme_data.json     # Word→IPA dataset (13,105 words)
+├── layer_probe_results.json    # Per-layer probe F1 scores
+├── subspace_analysis.json      # Phoneme direction geometry analysis
+├── context_rhyming_results.json # GPT-4.1 heteronym experiment
+├── probe_weights/              # Saved probe weight vectors
+│   ├── best_weights.npy
+│   ├── embedding_weights.npy
+│   └── layer_*_weights.npy
+└── plots/
+    ├── summary_comparison.png          # Three-panel overview
+    ├── layer_probing_f1.png            # F1 across layers
+    ├── per_phoneme_f1.png              # Per-phoneme performance
+    ├── orthogonality_across_layers.png # Direction alignment
+    ├── phoneme_pca_embedding.png       # PCA of phoneme directions
+    ├── phoneme_cosine_embedding.png    # Cosine similarity heatmap
+    ├── phoneme_dendrogram_embedding.png # Hierarchical clustering
+    ├── vowel_chart_embedding.png       # Vowel-specific PCA
+    ├── consonant_voicing_embedding.png # Consonant voicing PCA
+    └── heteronym_results.png           # Context-dependent results
+```
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Research Plan: Where is Rhyming?
+
+## Motivation &amp; Novelty Assessment
+
+### Why This Research Matters
+Language models can identify rhyming words despite never hearing speech — they only process text. Understanding WHERE this phonetic knowledge lives (embeddings vs. deeper layers) and HOW it&#39;s structured (per-phoneme subspaces?) illuminates how neural networks learn emergent linguistic representations. This has implications for interpretability, phonology, and cross-lingual transfer.
+
+### Gap in Existing Work
+Merullo et al. (2025) is the only rigorous mechanistic study, conducted solely on Llama-3.2-1B-Instruct. Key gaps:
+1. **Layer-by-layer analysis**: They probe embeddings and find phoneme mover heads, but don&#39;t systematically track how phonetic information evolves across ALL layers of the residual stream
+2. **Per-phoneme subspace geometry**: They show PCA structure but don&#39;t rigorously test whether each IPA phoneme has a distinct linear subspace
+3. **Context-dependent pronunciation**: Only single-token words studied; heteronyms (read/read, lead/lead) are unexplored
+4. **Cross-model generalization**: Only one model tested
+
+### Our Novel Contribution
+We extend the Merullo et al. work in three ways:
+1. **Layer-wise phoneme probing**: Track linear probe accuracy for IPA phonemes across every layer of the residual stream, mapping the emergence and transformation of phonetic representations
+2. **Phoneme subspace analysis**: Use probe weight vectors to test whether per-phoneme subspaces exist, measuring orthogonality, clustering by articulatory features, and testing causal relevance via targeted interventions
+3. **Context-dependent pronunciation via API**: Test whether modern LLMs can handle heteronyms correctly using real API calls, probing whether rhyming knowledge is purely lexical or contextual
+
+### Experiment Justification
+- **Exp 1 (Layer-wise probing)**: Needed to map WHERE phonetic info lives — is it all in embeddings or does it build through layers?
+- **Exp 2 (Subspace geometry)**: Needed to test the specific hypothesis about per-IPA-sound subspaces
+- **Exp 3 (Context-dependent rhyming)**: Needed to test whether rhyming is purely in static embeddings or requires contextual processing
+
+## Research Question
+Where is rhyming knowledge encoded in language models? Is it solely in embeddings, or does it involve deeper layers? Does each IPA phoneme have a distinct subspace?
+
+## Hypothesis Decomposition
+H1: Phonetic information is linearly decodable from token embeddings (replication of Merullo)
+H2: Phonetic information quality changes across layers — it emerges, peaks, and potentially transforms
+H3: Each IPA phoneme corresponds to a distinct direction in embedding/hidden space
+H4: Phoneme directions cluster by articulatory features (place, manner, voicing for consonants; height, backness for vowels)
+H5: Context-dependent pronunciation requires processing beyond embeddings (heteronyms)
+
+## Proposed Methodology
+
+### Approach
+Use Llama-3.2-1B-Instruct with TransformerLens for mechanistic analysis. Build word→IPA mappings from WikiPron/CMU Dict, train linear probes at each layer, analyze probe weight geometry.
+
+### Experimental Steps
+
+**Experiment 1: Layer-wise phoneme probing**
+1. Build vocabulary of single-token English words with IPA transcriptions
+2. Create multi-hot IPA phoneme labels for each word
+3. Extract embeddings and residual stream activations at each layer
+4. Train linear probes (logistic regression) at each layer to predict phonemes
+5. Plot probe accuracy vs. layer number
+
+**Experiment 2: Phoneme subspace geometry**
+1. Extract probe weight vectors (one per phoneme) from best-performing layer
+2. Compute cosine similarity matrix between all phoneme vectors
+3. Test clustering by articulatory features using PanPhon
+4. Measure orthogonality of phoneme subspaces
+5. Visualize with PCA/t-SNE, compare to IPA vowel chart
+
+**Experiment 3: Context-dependent rhyming (API-based)**
+1. Curate list of heteronyms (read, lead, wind, tear, etc.)
+2. Create sentence pairs providing context for each pronunciation
+3. Query LLM API to identify rhyming words in context
+4. Measure accuracy on context-dependent vs. context-independent rhyming
+
+### Baselines
+- Random probe accuracy (~42% from Merullo et al.)
+- Shuffled labels (chance performance for our specific setup)
+- PanPhon articulatory distance as ground truth for similarity
+
+### Evaluation Metrics
+- Multi-label probe accuracy (F1, precision, recall) per layer
+- Cosine similarity structure of probe weight vectors
+- Silhouette score for phoneme clustering by articulatory class
+- Rhyme identification accuracy for API-based context experiment
+
+### Statistical Analysis Plan
+- Bootstrap confidence intervals for probe accuracies
+- Permutation test for phoneme clustering significance
+- McNemar&#39;s test for context-dependent vs independent rhyming
+
+## Expected Outcomes
+- H1: Probe accuracy &gt;90% on embeddings (replicating Merullo)
+- H2: Accuracy rises in early layers, peaks mid-network, possibly decreases in later layers as semantics dominate
+- H3: Phoneme vectors show moderate but not perfect orthogonality
+- H4: Clear clustering by articulatory features in probe weight space
+- H5: LLMs handle heteronyms better than static embeddings would predict
+
+## Timeline
+- Setup + data prep: 15 min
+- Exp 1 (layer-wise probing): 45 min
+- Exp 2 (subspace geometry): 30 min
+- Exp 3 (context-dependent): 20 min
+- Analysis + visualization: 30 min
+- Documentation: 20 min
+
+## Potential Challenges
+- Llama-3.2-1B may be too large for full TransformerLens hooks on all layers → use batching
+- Single-token word constraint limits vocabulary size
+- WikiPron IPA may not perfectly match model&#39;s implicit phonetic knowledge
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+# Literature Review: Where is Rhyming?
+
+## Research Area Overview
+
+This literature review investigates how language models (LMs) represent phonetic information, particularly rhyming knowledge, despite receiving no explicit phonetic or auditory input. The core research question asks: **where is rhyming encoded within language models, and does there exist a subspace for each IPA sound?**
+
+The research sits at the intersection of mechanistic interpretability, phonology, and representation learning. Key themes include: (1) probing for phonetic information in LM embeddings and hidden states, (2) identifying specific model components (attention heads, MLPs) that process phonetic information, and (3) understanding the geometric organization of phoneme representations in latent space.
+
+---
+
+## Key Papers
+
+### Paper 1: I Have No Mouth, and I Must Rhyme (McLaughlin, Khurana, Merullo 2025)
+- **Source**: ICML 2025 Workshop on Assessing World Models (arXiv:2508.02527)
+- **Key Contribution**: First rigorous study of internal phonetic representations in a text-based LLM (Llama-3.2-1B-Instruct)
+- **Methodology**:
+  - **Linear probing**: Trained multi-hot linear probe on embeddings to predict IPA phonemes. Achieved ~96% accuracy (vs 42% random baseline), showing phonetic info is linearly recoverable from token embeddings.
+  - **Causal interventions**: Manipulated embedding-space phoneme vectors (rows of probe matrix) to change rhyming output. Adding c(μ - ξ) to embedding E shifts rhyming predictions from vowel ξ to vowel μ.
+  - **Activation patching**: Identified &#34;phoneme mover head&#34; H13L12 (Head 13, Layer 12) with mean normalized logit difference of 0.48 (next highest: 0.19). This head attends to the rhyme target word and promotes phonetically similar tokens via its result vectors.
+  - **Geometry analysis**: PCA on H13L12 result vectors reveals organized phonetic structure: PC2/PC3 separate voiced/voiceless consonants; PC1/PC2 separate vowel backness classes. Emergent &#34;Llama vowel chart&#34; partially aligns with but differs from human IPA chart.
+- **Key Findings**:
+  - Phonetic info exists in both embeddings AND residual stream
+  - A set of 3 &#34;phoneme mover heads&#34; (H13L12, H21L14, H22L14) with identical attention patterns form a redundant circuit
+  - Ablating all 3 breaks single-token rhyming; keeping any 1 preserves it
+  - Cross-lingual phonetic features emerge (Arabic, Hindi, Japanese tokens promoted by result vectors)
+  - Coherent result vectors are a prerequisite for successful rhyming (55% pass rate with coherent RV vs 0% with incoherent)
+- **Datasets Used**: WikiPron (pronunciation reference), Oxford 5000 (word list)
+- **Code Available**: Not yet released
+- **Relevance**: **DIRECTLY answers our research question.** This is the primary prior work.
+
+### Paper 2: PWESuite: Phonetic Word Embeddings and Tasks They Facilitate (Zouhar et al., 2023)
+- **Source**: LREC-COLING 2024 (arXiv:2304.02541)
+- **Key Contribution**: Standardized evaluation suite for phonetic word embeddings, including rhyme detection
+- **Methodology**: Develops count-based, autoencoder, and metric/contrastive learning methods using articulatory features (PanPhon). Evaluation includes intrinsic (word retrieval, sound similarity correlation) and extrinsic tasks (rhyme detection, cognate detection, sound analogies).
+- **Key Finding**: Intrinsic and extrinsic metrics for phonetic embeddings generally correlate, unlike semantic embeddings.
+- **Datasets**: CMU Pronouncing Dictionary, 9-language evaluation suite (1.7M entries)
+- **Code**: github.com/zouharvi/pwesuite
+- **Relevance**: Provides evaluation benchmarks for phonetic embedding quality, including rhyme detection task.
+
+### Paper 3: Small Language Models Also Work With Small Vocabularies (Bunzeck et al., 2024)
+- **Source**: BabyLM Challenge, arXiv:2410.01487
+- **Key Contribution**: Compares grapheme-based vs phoneme-based character-level Llama models on phonetic tasks including rhyme prediction
+- **Results**:
+  - Grapheme models: 88.5-91.5% rhyme prediction accuracy
+  - Phoneme models: 78.5-85.0% rhyme prediction accuracy
+  - Subword BabyLlama: 92.5% (but worse on lexical decision: 69% vs 99%)
+  - Phoneme models slightly better on age prediction (61.1% vs 60.5%)
+- **Key Finding**: Character-level models learn phonological representations effectively; grapheme models outperform phoneme models on most tasks, suggesting orthographic biases aid learning.
+- **Relevance**: Shows that even small character-level LMs encode rhyme information, complementing Merullo&#39;s findings on larger subword models.
+
+### Paper 4: Interpreting Character Embeddings With Perceptual Representations (2022)
+- **Source**: ACL 2022
+- **Key Contribution**: Shows character embeddings in multilingual models encode perceptual properties including sound
+- **Relevance**: Establishes that sub-word representations carry phonetic information, supporting the hypothesis that phonetic knowledge is partially in embeddings.
+
+### Paper 5: Deep-speare: A Joint Neural Model of Poetic Language, Meter and Rhyme (Lau et al., 2018)
+- **Source**: ACL 2018 (arXiv:1807.03491)
+- **Key Contribution**: Joint architecture capturing language, rhyme, and meter for sonnet generation
+- **Methodology**: Encodes stress and rhyme using a phonetic encoding layer alongside language modeling
+- **Relevance**: Early work on explicit rhyme modeling in neural networks; provides baseline approach.
+
+### Paper 6: Learning Rhyming Constraints using Structured Adversaries (Jhamtani et al., 2019)
+- **Source**: arXiv:1907.00707
+- **Key Contribution**: Uses structured adversarial training to enforce rhyming constraints in poetry generation without manual phonetic features
+- **Relevance**: Shows neural models can learn rhyme constraints implicitly.
+
+### Paper 7: Supervised Rhyme Detection with Siamese Recurrent Networks (Haider &amp; Kuhn, 2018)
+- **Source**: 2018
+- **Key Contribution**: Siamese RNN architecture for supervised rhyme detection
+- **Relevance**: Provides baseline approach for neural rhyme detection.
+
+### Paper 8: DeepRapper: Neural Rap Generation with Rhyme and Rhythm Modeling (Xue et al., 2021)
+- **Source**: arXiv:2107.01875
+- **Key Contribution**: Transformer-based rap generation with explicit rhyme representation and constraints; generates lyrics in reverse order with rhyme enhancement
+- **Relevance**: Shows how rhyme can be explicitly modeled in transformers.
+
+### Paper 9: Probing Subphonemes in Morphology Models (2025)
+- **Source**: arXiv:2501.01685
+- **Key Contribution**: Probes for sub-phonemic features in morphology models
+- **Relevance**: Methodological reference for probing phonetic features at fine granularity.
+
+---
+
+## Common Methodologies
+
+### Probing / Linear Probing
+- Train linear classifiers on model representations to predict linguistic properties
+- Used in Merullo et al. 2025 (phoneme prediction from embeddings), Bunzeck et al. 2024 (rhyme/age prediction from sentence embeddings)
+- Key insight: if a linear probe succeeds, the information is linearly accessible
+
+### Activation Patching / Causal Interventions
+- Replace activations from one forward pass with another to measure causal impact
+- Merullo et al. 2025: identified phoneme mover head H13L12 via patching
+- Standard tool in mechanistic interpretability (Meng et al., 2023)
+
+### Logit Lens
+- Decode intermediate representations into vocabulary space
+- Merullo et al. 2025: decoded H13L12 result vectors to find phonetically similar tokens
+
+### PCA / Dimensionality Reduction
+- Visualize high-dimensional representations
+- Merullo et al. 2025: PCA on result vectors reveals vowel organization
+
+---
+
+## Standard Baselines
+
+- **Random embeddings**: ~42% phoneme prediction accuracy (Merullo et al.)
+- **Subword-based BabyLlama**: 92.5% rhyme prediction (Bunzeck et al.)
+- **CMU Dict / WikiPron**: Standard pronunciation references
+- **PanPhon articulatory distance**: Feature edit distance for phonetic similarity
+
+## Evaluation Metrics
+
+- **Phoneme prediction accuracy** (multi-hot probe accuracy)
+- **Rhyme prediction accuracy** (probing-based classification)
+- **Normalized logit difference** (activation patching impact)
+- **Cosine similarity** of result vectors for phonetically similar words
+- **Feature edit distance** (articulatory distance via PanPhon)
+
+## Datasets in the Literature
+
+- **WikiPron**: Used by Merullo et al. for pronunciation reference; 3.9M pronunciations, 306 languages
+- **Oxford 5000**: Used by Merullo et al. for word filtering; ~5000 common English words
+- **CMU Pronouncing Dictionary**: 134K English words with ARPAbet; standard phonetic resource
+- **PWESuite-eval**: 1.7M entries across 9 languages with IPA, ARPAbet, orthography
+- **BLiMP**: Syntactic evaluation, adapted for phoneme models (Bunzeck et al.)
+
+---
+
+## Gaps and Opportunities
+
+1. **Model generalization**: Merullo et al. only study Llama-3.2-1B-Instruct. Does the same phoneme mover head structure exist in other models (GPT-2, Pythia, Mistral)?
+2. **Context-dependent pronunciation**: English has many context-dependent pronunciations (e.g., &#34;read&#34; /riːd/ vs /rɛd/). Current probing uses single-token words only. How does the model handle multi-token words and homographs?
+3. **Consonant-level analysis**: Merullo et al. focus heavily on vowels. The consonant analysis (voicing in PC2/PC3) is less developed.
+4. **Per-phoneme subspaces**: The hypothesis of &#34;a subspace for each IPA sound&#34; is partially confirmed by the linear probe approach (each row = a phoneme direction) but more rigorous subspace analysis is needed.
+5. **Causal chain**: The full circuit from embedding → phoneme mover heads → output is not fully traced. What happens between the embedding and H13L12?
+6. **Training dynamics**: When during training do phonetic representations emerge?
+
+---
+
+## Recommendations for Our Experiment
+
+Based on the literature:
+
+- **Primary model**: Llama-3.2-1B-Instruct (following Merullo et al.), with extensions to other models
+- **Primary datasets**: WikiPron + Oxford 5000 for pronunciation data; CMU Dict as fallback
+- **Recommended baselines**: Random embeddings, PanPhon articulatory distance
+- **Recommended metrics**: Linear probe accuracy, activation patching logit difference, PCA visualization
+- **Key tools**: TransformerLens or nnsight for mechanistic interpretability; PanPhon for articulatory features
+- **Methodological focus**: (1) Replicate Merullo et al.&#39;s probe on embeddings, (2) Extend to residual stream at each layer, (3) Test whether per-phoneme subspaces exist using DLR or other subspace methods, (4) Investigate context-dependent pronunciation
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete academic paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey main finding or contribution
+
+2. AUTHOR
+   - Use this exact author line in the \author{} block: Ari Holtzman and NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - Problem statement
+   - Approach
+   - Key results
+   - Significance
+
+4. INTRODUCTION
+   - Research problem and motivation
+   - Gap in existing work
+   - Our contribution (be specific)
+   - Paper organization
+
+5. RELATED WORK
+   - Organized by theme/approach
+   - Position our work relative to prior work
+   - Cite papers from literature review
+
+6. METHODOLOGY
+   - Clear description of approach
+   - Experimental setup
+   - Datasets used
+   - Evaluation metrics
+   - Baselines
+
+7. RESULTS
+   - Present results with tables and figures
+   - Statistical analysis
+   - Comparison to baselines
+   - Ablation studies (if applicable)
+
+8. DISCUSSION
+   - Interpretation of results
+   - Limitations
+   - Broader implications
+
+9. CONCLUSION
+   - Summary of contributions
+   - Key findings
+   - Future work
+
+10. REFERENCES
+   - BibTeX format
+   - All cited papers
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── related_work.tex  # Related work section
+│   ├── methodology.tex   # Methodology section
+│   ├── results.tex       # Results section
+│   ├── discussion.tex    # Discussion section
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+├── tables/               # Directory for complex standalone tables
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/tables paper_draft/appendix)
+2. Write main.tex using the EXACT preamble for NEURIPS:
+
+   \documentclass{article}
+   \usepackage[final]{neurips_2025}  % NEURIPS style (neurips_2025.sty is in paper_draft/)
+   \usepackage[hidelinks]{hyperref}  % REQUIRED: clickable links
+   \usepackage{booktabs}  % REQUIRED: professional tables
+   \usepackage{graphicx}
+   \usepackage{amsmath,amssymb}
+
+   % Import command files
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+   % Use this bibliography style:
+   \bibliographystyle{plainnat}
+
+   \author{Ari Holtzman and NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic tone throughout
+- All claims must be supported by data from the experiment report
+- Proper citations using \cite{} commands
+- Clear figures and tables with proper captions
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                          LAB WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these lab-specific conventions to match our paper style:
+
+1. LANGUAGE STYLE:
+   - Use active voice: "We propose", "We examine", "We focus on"
+   - Be direct and confident: "Our main question is...", "We hypothesize that..."
+   - State things clearly and simply - prefer plain language over jargon
+   - Use bold questions as paragraph organizers: {\bf what is X?}
+   - Include specific quantitative claims: "8.97% over baseline"
+   - Avoid fancy wording: "utilize" → "use", "facilitate" → "help"
+
+2. INTRODUCTION STRUCTURE:
+   - Engaging hook (get to the point quickly)
+   - Problem importance
+   - Gap identification
+   - Your approach with method figure reference
+   - Quantitative preview of results
+   - Contribution bullets (3-4 items, action verbs)
+
+3. CONTRIBUTION LISTS:
+   \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+       \item We propose...
+       \item We conduct...
+       \item We complement...
+   \end{itemize}
+
+4. MODULAR COMMANDS STRUCTURE:
+   Command templates are pre-copied to paper_draft/commands/:
+   - math.tex: Math notation macros
+   - general.tex: Formatting macros
+   - macros.tex: Project-specific term definitions (customize this for your paper)
+
+   In main.tex, include:
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+5. REFERENCE CONVENTIONS:
+   Use reference macros from math.tex:
+   - \figref{fig:name} for "figure 1" (lowercase, in-sentence)
+   - \Figref{fig:name} for "Figure 1" (capitalized, start of sentence)
+   - \secref{sec:name} for "section 2"
+
+6. TEXT FORMATTING:
+   - Use \para{Header text} for bold paragraph headers
+   - Define method/dataset names with \textsc and \xspace:
+     \newcommand{\methodname}{\textsc{MethodName}\xspace}
+
+7. TABLE FORMATTING:
+   - Use booktabs package (no vertical lines)
+   - Use \resizebox{\textwidth}{!}{...} for wide tables
+   - Use @{} to remove padding at table edges
+   - Use \cmidrule(lr){x-y} for sub-headers
+   - Use \textsc{} for dataset/method names in headers
+   - Bold best results with {\bf ...}
+
+8. FIGURE FORMATTING:
+   - Use 0.32\textwidth for 3-column subfigures
+   - Use 0.95\linewidth for full-width figures
+   - Use \input{figures/legend} for shared legends
+   - Write self-contained captions explaining key observations
+
+9. RESULTS PRESENTATION:
+   - Define \increase and \decrease for colored arrows (green up, red down)
+   - Bold best results in tables
+   - Report confidence intervals when available
+
+10. ALGORITHM STYLING:
+    - Use algpseudocode with [noend]
+    - Use \triangleright for comments
+
+11. HYPERLINKS (REQUIRED):
+    - Always use \usepackage[hidelinks]{hyperref} or with colored links
+    - All citations, section refs, figure refs, table refs must be clickable
+    - This is essential for reader navigation
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .claude/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Browse paper_examples/ for formatting and language patterns
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   LANGUAGE CHECK:
+   - [ ] Is the writing clear and jargon-free?
+   - [ ] Are claims specific with quantitative support?
+   - [ ] Is active voice used throughout?
+
+   FORMATTING CHECK:
+   - [ ] Does main.tex include \input{commands/math}, \input{commands/general}, \input{commands/macros}?
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Do tables use booktabs (no vertical lines)?
+   - [ ] Are best results bolded in tables?
+   - [ ] Are figures/tables properly captioned?
+
+   STRUCTURE CHECK:
+   - [ ] Does introduction follow: hook → importance → gap → approach → preview → contributions?
+   - [ ] Are contribution bullets specific with action verbs?
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.

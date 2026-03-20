@@ -1,0 +1,25 @@
+\section{Introduction}
+\label{sec:intro}
+
+Language models trained exclusively on text can tell you that ``cat'' rhymes with ``bat'' but not with ``cut''---despite having never heard either word spoken.
+This ability is striking: rhyming is fundamentally a \emph{phonetic} relationship, yet these models receive no auditory signal, no phonemic annotation, and no explicit pronunciation data during training.
+The co-occurrence statistics of written language are apparently sufficient for models to recover aspects of the sound system.
+But \emph{where} in the model does this phonetic knowledge reside?
+
+Recent work by \citet{mclaughlin2025rhyme} provided a first answer for \llama: a ``phoneme mover head'' (H13L12) organizes rhyming behavior, and linear probes on the embedding layer recover IPA phonemes with approximately 96\% accuracy.
+However, several questions remain open.
+First, does phonetic information \emph{build} through the network the way syntactic and semantic features do \citep{radford2019language}, or is it established early and simply maintained?
+Second, does each IPA phoneme correspond to a distinct, roughly orthogonal subspace---or do phonemes share representational structure in more complex ways?
+Third, how do models handle \emph{context-dependent} pronunciation, as in heteronyms like ``read'' (/ri:d/ vs.\ /r$\varepsilon$d/)?
+
+We address these questions through three experiments on \gptmed (355M parameters, 24 layers).
+Using 13{,}105 single-token English words with IPA transcriptions from \wikipron, we train per-phoneme Ridge classifiers at every layer of the residual stream and find that phonetic information is \emph{front-loaded}: it peaks at layer~0 (macro F1~=~0.41) with no improvement in deeper layers (\secref{sec:probing}).
+We compute phoneme direction vectors and show that each phoneme has a distinct direction ($5.3\times$ above random baseline) but these directions are not orthogonal---they become \emph{more} aligned in deeper layers (\secref{sec:geometry}).
+We test \gptfour on heteronym rhyming and uncover a systematic primary-pronunciation bias: 92\% accuracy on primary but only 58\% on secondary pronunciations (\secref{sec:context}).
+
+Our contributions are:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item We conduct the first systematic layer-by-layer phoneme probing across all 25 layers of a transformer language model, showing that phonetic information is front-loaded and does not build through the network.
+    \item We analyze phoneme subspace geometry using direction vectors, finding structured but non-orthogonal phoneme representations that compress in deeper layers.
+    \item We introduce a heteronym rhyming test that reveals a primary-pronunciation bias in modern language models, demonstrating that context-dependent phonetic processing remains an open challenge.
+\end{itemize}

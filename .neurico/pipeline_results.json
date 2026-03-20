@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "stages": {
+    "resource_finder": {
+      "success": true,
+      "completion_marker": "/workspaces/where-is-rhyming-claude/.resource_finder_complete",
+      "outputs": {
+        "literature_review": "/workspaces/where-is-rhyming-claude/literature_review.md",
+        "resources_catalog": "/workspaces/where-is-rhyming-claude/resources.md",
+        "papers_dir": "/workspaces/where-is-rhyming-claude/papers",
+        "datasets_dir": "/workspaces/where-is-rhyming-claude/datasets",
+        "code_dir": "/workspaces/where-is-rhyming-claude/code"
+      },
+      "log_file": "/workspaces/where-is-rhyming-claude/logs/resource_finder_claude.log",
+      "transcript_file": "/workspaces/where-is-rhyming-claude/logs/resource_finder_claude_transcript.jsonl",
+      "elapsed_time": 1313.4107699394226
+    },
+    "experiment_runner": {
+      "success": true,
+      "return_code": 0,
+      "elapsed_time": 2009.9563658237457,
+      "log_file": "/workspaces/where-is-rhyming-claude/logs/execution_claude.log",
+      "transcript_file": "/workspaces/where-is-rhyming-claude/logs/execution_claude_transcript.jsonl"
+    }
+  },
+  "work_dir": "/workspaces/where-is-rhyming-claude"
+}

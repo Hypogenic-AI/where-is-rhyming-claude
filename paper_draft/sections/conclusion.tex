@@ -1,0 +1,15 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We investigated where rhyming knowledge is encoded in transformer language models through three experiments on \gptmed using 13{,}105 words with IPA transcriptions.
+Our layer-wise probing reveals that phonetic information is \emph{front-loaded}: it peaks at the embedding/layer-0 boundary and does not improve through the network, contrasting with semantic and syntactic features that build through deeper layers.
+Our geometric analysis shows that each phoneme has a distinct direction in embedding space ($5.3\times$ above random baseline) but these directions are not orthogonal---they form an overlapping phonetic manifold that compresses in deeper layers.
+Our heteronym test uncovers a primary-pronunciation bias in \gptfour (92\% primary vs.\ 58\% secondary accuracy), demonstrating that context-dependent phonetic processing remains an open challenge.
+
+The answer to ``where is rhyming?'' is: mostly in the token embedding table, refined by the first transformer layer, and preserved but not enriched through the rest of the network.
+
+Several directions for future work emerge from these findings.
+Replicating this analysis on \llama and other model families would test whether the front-loading pattern generalizes.
+Causal interventions---modifying phoneme direction vectors and observing changes in rhyming behavior---would establish whether these directions are merely correlated with phonetic content or causally implicated.
+Extending the heteronym evaluation to more words and models would better characterize the primary-pronunciation bias and test whether improved prompting or fine-tuning can mitigate it.
+Finally, analyzing multi-token words would reveal whether the phonetic encoding patterns we observe for single tokens extend to subword-assembled pronunciations.

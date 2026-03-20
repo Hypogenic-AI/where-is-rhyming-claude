@@ -1,0 +1,59 @@
+\section{Methodology}
+\label{sec:method}
+
+\subsection{Dataset Construction}
+\label{sec:data}
+
+We construct a dataset of English words with IPA transcriptions by intersecting the \wikipron US English broad transcription database \citep{lee2020massively} with the set of words that encode as a single token under the GPT-2 tokenizer.
+This single-token constraint ensures a clean mapping between token representations and phonemic content: each word's embedding directly corresponds to its complete pronunciation without BPE segmentation artifacts.
+
+The resulting dataset contains 13{,}105 words spanning 77 unique IPA phonemes.
+Of these, 4{,}607 words (35\%) appear in the \oxfordfive common word list, confirming broad coverage of everyday English.
+We use the first transcription listed in \wikipron for words with multiple pronunciation entries.
+Each word is labeled with a multi-hot vector indicating which IPA phonemes it contains (\eg ``water'' maps to the set of its constituent IPA phonemes).
+We split the data 80/20 into train (10{,}484) and test (2{,}621) sets with random seed~42.
+
+\subsection{Experiment 1: Layer-Wise Phoneme Probing}
+\label{sec:method_probing}
+
+{\bf Where does phonetic information live across layers?}
+For each of the 25 representation sites in \gptmed---the token embedding layer plus 24 transformer layer outputs---we extract the residual stream activation $\vh_\ell \in \sR^{1024}$ for each word.
+We extract activations using TransformerLens \citep{nanda2022transformerlens}, processing words in batches of 256 on a single NVIDIA RTX A6000 GPU.
+
+At each layer $\ell$, we train 77 independent Ridge classifiers (one per IPA phoneme $p$), each predicting whether phoneme $p$ is present in the word from the activation vector $\vh_\ell$.
+We use Ridge regression ($\alpha = 1.0$) with StandardScaler normalization rather than logistic regression: preliminary experiments showed logistic regression required approximately 10 minutes per layer, while Ridge achieved comparable quality in approximately 11 seconds per layer, enabling a full 25-layer sweep.
+
+We evaluate with macro F1 (averaging across all 77 phonemes equally) and micro F1 (weighting by phoneme frequency).
+Macro F1 is our primary metric as it better captures performance on rare phonemes.
+
+\subsection{Experiment 2: Phoneme Subspace Geometry}
+\label{sec:method_geometry}
+
+{\bf Does each IPA sound have a distinct direction in representation space?}
+For each phoneme $p$ with at least 30 occurrences, we compute its \emph{direction vector} as the difference between the mean activation of words containing $p$ and words not containing $p$:
+\begin{equation}
+    \vd_p = \frac{1}{|S_p|}\sum_{\vx \in S_p} \vx - \frac{1}{|S_p^c|}\sum_{\vx \in S_p^c} \vx
+    \label{eq:direction}
+\end{equation}
+where $S_p = \{\vx : p \in \text{phonemes}(\vx)\}$ is the set of activations for words containing phoneme $p$.
+We compute these directions at every layer and analyze them via:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt,topsep=2pt]
+    \item \textbf{Pairwise cosine similarity.} We compute the $49 \times 49$ matrix of absolute cosine similarities between all phoneme direction vectors and compare the mean to the expected value for random unit vectors in $\sR^{1024}$ ($\approx 0.025$).
+    \item \textbf{Clustering analysis.} We apply hierarchical clustering (Ward's method) to the direction vectors and compute silhouette scores for groupings by vowel/consonant distinction and by manner of articulation.
+    \item \textbf{PCA visualization.} We project all phoneme directions, vowels only, and consonants only onto their top principal components.
+    \item \textbf{Cross-layer comparison.} We track how the mean pairwise similarity and clustering quality evolve from the embedding layer through the final transformer layer.
+\end{itemize}
+
+We use direction vectors rather than Ridge regression weights because the probe weights exhibited near-collinear structure---an artifact of L2 regularization---while mean-difference directions directly measure how each phoneme is encoded in the representation space.
+
+\subsection{Experiment 3: Context-Dependent Rhyming}
+\label{sec:method_context}
+
+{\bf Can models resolve pronunciation when it depends on context?}
+We test whether rhyming knowledge extends beyond static lexical representations by querying \gptfour on heteronyms: words whose pronunciation changes with context (\eg ``read'' as /ri:d/ in ``I will read'' vs.\ /r$\varepsilon$d/ in ``I have read'').
+
+We select 12 common English heteronyms (read, lead, wind, tear, bow, bass, dove, minute, close, live, refuse, desert) and construct sentence pairs that establish each pronunciation through syntactic or semantic context.
+For each context, we present a forced-choice rhyming question with two candidate words (one matching each pronunciation) and record the model's selection.
+We also include 20 standard (non-heteronym) rhyming pairs as controls: 15 easy pairs and 5 orthographically tricky pairs (\eg ``cough'' and ``off'').
+All queries use temperature~0 for deterministic outputs.

@@ -1,0 +1,28 @@
+\section{Related Work}
+\label{sec:related}
+
+\para{Phonetic representations in language models.}
+The question of whether text-only models learn phonetic information has attracted growing interest.
+\citet{mclaughlin2025rhyme} provided the most rigorous mechanistic study to date, identifying a ``phoneme mover head'' in \llama that promotes phonetically similar tokens during rhyme generation, with linear probes achieving approximately 96\% accuracy on embedding-layer phoneme prediction.
+Their work demonstrated that phonetic information is linearly accessible in the embedding layer, but did not systematically track how this information evolves across all layers of the residual stream.
+We extend their analysis by probing every layer of \gptmed, revealing that phonetic information is front-loaded rather than progressively built.
+\citet{bunzeck2024small} compared grapheme-based and phoneme-based character-level language models on phonetic tasks, finding that even small models achieve 88--92\% rhyme prediction accuracy, with grapheme models surprisingly outperforming phoneme models.
+Earlier work on character embeddings \citep{elhage2022interpreting} established that sub-word representations carry perceptual properties including sound-related features.
+
+\para{Phonetic word embeddings.}
+\citet{zouhar2023pwesuite} developed a standardized evaluation suite for phonetic word embeddings, including rhyme detection as a benchmark task.
+Their work uses count-based, autoencoder, and contrastive learning methods with articulatory features from PanPhon, providing complementary evaluation methodology for measuring phonetic content in learned representations.
+Our direction-vector analysis relates to this line of work: rather than training specialized phonetic embeddings, we analyze the implicit phonetic structure in general-purpose language model representations.
+
+\para{Rhyme in neural text generation.}
+Several systems have addressed rhyme explicitly in the context of poetry or song generation.
+\citet{lau2018deep} proposed a joint neural model of poetic language, meter, and rhyme for sonnet generation.
+\citet{jhamtani2019learning} used structured adversarial training to enforce rhyming constraints without manual phonetic features.
+\citet{xue2021deeprapper} built a transformer-based rap generation system with explicit rhyme and rhythm modeling.
+\citet{haider2018supervised} developed Siamese recurrent networks for supervised rhyme detection.
+These systems treat rhyme as an explicit constraint to be enforced; our work instead asks where rhyme knowledge \emph{already exists} within standard pretrained models.
+
+\para{Mechanistic interpretability of linguistic features.}
+Our probing methodology follows the broader tradition of using linear probes to identify linguistic features in neural network representations \citep{radford2019language}.
+While most probing studies find that syntactic and semantic features build through the network---with syntax peaking in middle layers and semantics in later layers---we find a qualitatively different pattern for phonetic features: they are strongest at the embedding boundary and gradually degrade.
+This contributes to a more complete picture of how different levels of linguistic structure are distributed across transformer layers.
